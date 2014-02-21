@@ -8,16 +8,9 @@ This is essentially a port of Tyler Hall's [PHP Sosumi Class](http://github.com/
 ## Examples
 
 
-import sosumijava.Sosumi;
-import sosumijava.DeviceLocation;
-
-public class SosumiJavaTester {
-
     public static void main(String[] args) throws Exception {
             Sosumi sosumi = new Sosumi("https://fmipmobile.icloud.com", "APPLE_ID", "PASSWORD");
-            sosumi.refresh();
             DeviceLocation loc = sosumi.locateDevice("My iPhone", 60);
             System.out.println("Located: " + loc);
     }
-}
 
