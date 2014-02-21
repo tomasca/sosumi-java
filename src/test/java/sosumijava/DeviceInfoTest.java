@@ -1,3 +1,7 @@
+/*
+ * sosumi-java
+ * Copyright 2014 Tomas Carlfalk. All rights reserved.
+ */
 package sosumijava;
 
 import static org.junit.Assert.*;

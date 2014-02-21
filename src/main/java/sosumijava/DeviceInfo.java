@@ -1,3 +1,7 @@
+/*
+ * sosumi-java
+ * Copyright 2014 Tomas Carlfalk. All rights reserved.
+ */
 package sosumijava;
 
 import com.google.gson.JsonElement;
@@ -9,9 +13,9 @@ import com.google.gson.JsonParser;
  * @author tomasca
  */
 public class DeviceInfo {
-    
+
     public static DeviceInfo fromJson(String json) {
-        
+
         JsonElement je = new JsonParser().parse(json);
         JsonObject diObject = je.getAsJsonObject();
 
@@ -26,7 +30,6 @@ public class DeviceInfo {
         }
         return di;
     }
-    
     private String deviceName;
     private String deviceClass;
     private double batteryLevel;
@@ -56,10 +59,9 @@ public class DeviceInfo {
     public boolean isLocationFinished() {
         return deviceLocation != null ? deviceLocation.isLocationFinished() : false;
     }
-    
+
     @Override
     public String toString() {
         return "DeviceInfo{" + "deviceName=" + deviceName + ", deviceClass=" + deviceClass + ", batteryLevel=" + batteryLevel + ", batteryStatus=" + batteryStatus + ", deviceLocation=" + deviceLocation + '}';
     }
-
 }
