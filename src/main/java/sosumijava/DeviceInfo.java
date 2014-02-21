@@ -24,6 +24,7 @@ public class DeviceInfo {
         di.deviceClass = diObject.get("deviceClass").getAsString();
         di.batteryLevel = diObject.get("batteryLevel").getAsDouble();
         di.batteryStatus = diObject.get("batteryStatus").getAsString();
+        di.deviceId = diObject.get("id").getAsString();
         JsonElement loc = diObject.get("location");
         if (loc != null && !loc.isJsonNull()) {
             di.deviceLocation = DeviceLocation.fromJson(loc.toString());
@@ -35,6 +36,11 @@ public class DeviceInfo {
     private double batteryLevel;
     private String batteryStatus;
     private DeviceLocation deviceLocation;
+    private String deviceId;
+
+    public String getDeviceId() {
+        return deviceId;
+    }
 
     public String getDeviceName() {
         return deviceName;
@@ -62,6 +68,7 @@ public class DeviceInfo {
 
     @Override
     public String toString() {
-        return "DeviceInfo{" + "deviceName=" + deviceName + ", deviceClass=" + deviceClass + ", batteryLevel=" + batteryLevel + ", batteryStatus=" + batteryStatus + ", deviceLocation=" + deviceLocation + '}';
+        return "DeviceInfo{" + "deviceName=" + deviceName + ", deviceClass=" + deviceClass + ", batteryLevel=" + batteryLevel + ", batteryStatus=" + batteryStatus + ", deviceLocation=" + deviceLocation + ", deviceId=" + deviceId + '}';
     }
+
 }

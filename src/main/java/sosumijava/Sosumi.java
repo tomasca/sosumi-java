@@ -40,7 +40,8 @@ public class Sosumi {
     private String password;
     private String username;
     private HashMap<String, DeviceInfo> devices;
-    private static final String INIT_JSON_BODY = "{\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\"}}";
+    private static final String CLIENT_CONTEXT = "\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\"}";
+    private static final String INIT_JSON_BODY = "{" + CLIENT_CONTEXT + "}";
 
     /**
      *
@@ -82,6 +83,43 @@ public class Sosumi {
                     LOG.debug(di);
                 }
                 this.devices = tmpDevices;
+
+            } catch (IOException ex) {
+                throw new SosumiException("Failed to read response payload", ex);
+            } catch (ParseException ex) {
+                throw new SosumiException("Failed to parse response payload", ex);
+            }
+        } else {
+            LOG.warn("No successful response received");
+            throw new SosumiException("Did not receive a successful respose from FMIP service");
+        }
+    }
+
+    public void sendMessage(String deviceName, String text, String subject, boolean sound) throws SosumiException {
+        DeviceInfo di = devices.get(deviceName);
+        if (di == null) {
+            refresh();
+            di = devices.get(deviceName);
+            if (di == null) {
+                throw new SosumiException("Unknown device: " + deviceName);
+            }
+        }
+
+        String json = "{" + CLIENT_CONTEXT
+                + ",\"device\":\"" + di.getDeviceId() + "\""
+                + ",\"emailUpdates\":null"
+                + ",\"sound\":\"" + sound + "\""
+                + ",\"subject\":\"" + subject + "\""
+                + ",\"text\":\"" + text + "\""
+                + ",\"userText\":\"true\""
+                + "}";
+
+        CloseableHttpResponse resp = postApiCall("sendMessage", json);
+        LOG.debug("Response: " + resp.getStatusLine());
+        if (resp.getStatusLine().getStatusCode() == 200) {
+            try {
+                String data = EntityUtils.toString(resp.getEntity());
+                LOG.debug(data);
 
             } catch (IOException ex) {
                 throw new SosumiException("Failed to read response payload", ex);
