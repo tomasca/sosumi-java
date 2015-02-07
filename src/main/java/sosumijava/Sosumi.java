@@ -40,7 +40,7 @@ public class Sosumi {
     private String password;
     private String username;
     private HashMap<String, DeviceInfo> devices;
-    private static final String CLIENT_CONTEXT = "\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\"}";
+    private static final String CLIENT_CONTEXT = "\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\",\"fmly\":true}";
     private static final String INIT_JSON_BODY = "{" + CLIENT_CONTEXT + "}";
 
     /**
