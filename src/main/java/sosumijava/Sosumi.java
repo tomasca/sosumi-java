@@ -10,6 +10,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Header;
@@ -23,6 +24,8 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -34,11 +37,11 @@ import com.google.gson.JsonParser;
  */
 public class Sosumi {
 
+	private static final Gson gson = new GsonBuilder().create();
 	private static final Logger LOG = Logger.getLogger(Sosumi.class);
 	private static final int MAX_REDIRECTS = 4;
-	private static final String CLIENT_CONTEXT = "\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\",\"fmly\":true}";
-	private static final String INIT_JSON_BODY = "{" + CLIENT_CONTEXT + "}";
-
+	private final Map<String, Object> clientContext;
+	
 	private URL fmipHost;
 	private URL partition;
 	private String scope;
@@ -64,17 +67,28 @@ public class Sosumi {
 		this.password = password;
 		devices = new HashMap<String, DeviceInfo>(4);
 		httpclient = HttpClients.createDefault();
+		
+		clientContext = new HashMap<String, Object>(10);
+		clientContext.put( "appName", "FindMyiPhone" );
+		clientContext.put( "appVersion", "3.0" );
+		clientContext.put( "buildVersion", "376" );
+		clientContext.put( "clientTimestamp", 0 );
+		clientContext.put( "deviceUDID", null );
+		clientContext.put( "inactiveTime", 1 );
+		clientContext.put( "osVersion", "7.0.3" );
+		clientContext.put( "productType", "iPhone6,1" );
+		clientContext.put( "fmly", true );
 	}
-
+	
 	private void refresh() throws SosumiException {
 
-		CloseableHttpResponse resp = postApiCall("initClient", Sosumi.INIT_JSON_BODY);
+		CloseableHttpResponse resp = postApiCall("initClient", gson.toJson( clientContext ));
 		int redirects = 0;
 
 		while ((redirects < MAX_REDIRECTS) && resp.getStatusLine().getStatusCode() == 330) {
 			grabHeaders(resp);
 			LOG.debug("Following 330 redirect...");
-			resp = postApiCall("initClient", Sosumi.INIT_JSON_BODY);
+			resp = postApiCall("initClient", gson.toJson( clientContext ));
 		}
 
 		LOG.debug("Response: " + resp.getStatusLine());
@@ -123,16 +137,16 @@ public class Sosumi {
 
 		DeviceInfo di = getDeviceInfo( deviceName );
 
-		String json = "{" + CLIENT_CONTEXT
-				+ ",\"device\":\"" + di.getDeviceId() + "\""
-				+ ",\"emailUpdates\":\""+ emailUpdates +"\""
-				+ ",\"sound\":\"" + sound + "\""
-				+ ",\"subject\":\"" + subject + "\""
-				+ ",\"text\":\"" + text + "\""
-				+ ",\"userText\":\"true\""
-				+ "}";
-
-		doRemoteRequestAndReadAnswer( "sendMessage", json );
+		Map<String, Object> jsonMap = new HashMap<String, Object>(7);
+		jsonMap.put( "clientContext", clientContext );
+		jsonMap.put( "device", di.getDeviceId() );
+		jsonMap.put( "emailUpdates", emailUpdates );
+		jsonMap.put( "sound", sound );
+		jsonMap.put( "subject", subject );
+		jsonMap.put( "text", text );
+		jsonMap.put( "userText", true );
+		
+		doRemoteRequestAndReadAnswer( "sendMessage", gson.toJson( jsonMap ) );
 	}
 
 	public void playSound(
@@ -140,13 +154,13 @@ public class Sosumi {
 			final String title ) throws SosumiException {
 
 		DeviceInfo di = getDeviceInfo( deviceName );
-
-		String json = "{" + CLIENT_CONTEXT
-				+ ",\"device\":\"" + di.getDeviceId() + "\""
-				+ ",\"subject\":\"" + title + "\""
-				+ "}";
-
-		doRemoteRequestAndReadAnswer( "playSound", json );
+		
+		Map<String, Object> jsonMap = new HashMap<String, Object>(3);
+		jsonMap.put( "clientContext", clientContext );
+		jsonMap.put( "device", di.getDeviceId() );
+		jsonMap.put( "subject", title );
+		
+		doRemoteRequestAndReadAnswer( "playSound", gson.toJson( jsonMap ) );
 	}
 
 	private DeviceInfo getDeviceInfo(
@@ -173,61 +187,64 @@ public class Sosumi {
 
 		DeviceInfo di = getDeviceInfo( deviceName );
 
-		String json = "{" + CLIENT_CONTEXT
-				+ ",\"device\":\"" + di.getDeviceId() + "\""
-				+ ",\"lostModeEnabled\":\"true\""
-				+ ",\"trackingEnabled\":\"true\""
-				+ ",\"sound\":\"" + playSound + "\""
-				+ ",\"emailUpdates\":\"" + emailUpdates + "\"";
-
+		Map<String, Object> jsonMap = new HashMap<String, Object>(11);
+		jsonMap.put( "clientContext", clientContext );
+		jsonMap.put( "device", di.getDeviceId() );
+		jsonMap.put( "lostModeEnabled", true );
+		jsonMap.put( "trackingEnabled", true );
+		jsonMap.put( "sound", playSound );
+		jsonMap.put( "emailUpdates", emailUpdates );
+		
 		if ( passcode != null ) {
-			json += ",\"passcode\":\"" + passcode + "\""; 
+			jsonMap.put( "passcode", passcode );
 		}
 
 		if ( ownerNbr != null ) {
-			json += ",\"ownerNbr\":\"" + ownerNbr + "\"";
+			jsonMap.put( "ownerNbr", ownerNbr );
 		}
 
 		if ( msg != null ) {
-			json += ",\"userText\":\"true\"";
-			json += ",\"text\":\"" + msg + "\"";	
+			jsonMap.put( "userText", true );
+			jsonMap.put( "text", msg );
 		} else {
-			json += ",\"userText\":false";
+			jsonMap.put( "userText", false );
 		}
 
-		json += "}";
-
-		doRemoteRequestAndReadAnswer( "lostDevice", json );
+		doRemoteRequestAndReadAnswer( "lostDevice", gson.toJson( jsonMap ) );
 	}
 
 	public void stopLostMode( 
 			final String deviceName ) throws SosumiException {
 
 		DeviceInfo di = getDeviceInfo( deviceName );
+		
+		Map<String, Object> jsonMap = new HashMap<String, Object>(6);
+		jsonMap.put( "clientContext", clientContext );
+		jsonMap.put( "device", di.getDeviceId() );
+		jsonMap.put( "lostModeEnabled", true );
+		jsonMap.put( "trackingEnabled", false );
+		jsonMap.put( "emailUpdates", false );
+		jsonMap.put( "userText", false );
 
-		String json = "{" + CLIENT_CONTEXT
-				+ ",\"device\":\"" + di.getDeviceId() + "\""
-				+ ",\"lostModeEnabled\":\"true\""
-				+ ",\"trackingEnabled\":\"false\""
-				+ ",\"userText\":\"false\""
-				+ ",\"emailUpdates\":\"false\""
-				+ "}";
-
-		doRemoteRequestAndReadAnswer( "lostDevice", json );
+		doRemoteRequestAndReadAnswer( "lostDevice", gson.toJson( jsonMap ) );
 	}
 
 	public void lock( 
-			final String deviceName ) throws SosumiException {
+			final String deviceName,
+			final String passcode ) throws SosumiException {
 
 		DeviceInfo di = getDeviceInfo( deviceName );
 
-		String json = "{" + CLIENT_CONTEXT
-				+ ",\"device\":\"" + di.getDeviceId() + "\""
-				+ ",\"passcode\":\"1234\""
-				+ ",\"emailUpdates\":\"" + true + "\""
-				+ "}";
-
-		doRemoteRequestAndReadAnswer( "remoteLock", json );
+		Map<String, Object> jsonMap = new HashMap<String, Object>(3);
+		jsonMap.put( "clientContext", clientContext );
+		jsonMap.put( "device", di.getDeviceId() );
+		jsonMap.put( "emailUpdates", true );
+		
+		if ( passcode != null ) {
+			jsonMap.put( "passcode", passcode );
+		}
+		
+		doRemoteRequestAndReadAnswer( "remoteLock", gson.toJson( jsonMap ) );
 	}
 
 	private void doRemoteRequestAndReadAnswer(
@@ -257,11 +274,11 @@ public class Sosumi {
 		
 		DeviceInfo di = getDeviceInfo( deviceName );
 
-		String json = "{" + CLIENT_CONTEXT
-				+ ",\"device\":\"" + di.getDeviceId() + "\""
-				+ "}";
-
-		doRemoteRequestAndReadAnswer( "remoteWipe", json );
+		Map<String, Object> jsonMap = new HashMap<String, Object>(3);
+		jsonMap.put( "clientContext", clientContext );
+		jsonMap.put( "device", di.getDeviceId() );
+		
+		doRemoteRequestAndReadAnswer( "remoteWipe", gson.toJson( jsonMap ) );
 	}
 
 	/**
