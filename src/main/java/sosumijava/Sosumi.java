@@ -51,6 +51,9 @@ public class Sosumi {
 	private String username;
 	private HashMap<String, DeviceInfo> devices;
 
+	// ************************************************************************************************
+	// ************************************************************************************************
+	
 	/**
 	 *
 	 * @param fmipHostUrl Base URL where the Find My iPhone service is located. E.g https://fmipmobile.icloud.com
@@ -68,7 +71,7 @@ public class Sosumi {
 		devices = new HashMap<String, DeviceInfo>(4);
 		httpclient = HttpClients.createDefault();
 		
-		clientContext = new HashMap<String, Object>(10);
+		clientContext = new HashMap<String, Object>(9);
 		clientContext.put( "appName", "FindMyiPhone" );
 		clientContext.put( "appVersion", "3.0" );
 		clientContext.put( "buildVersion", "376" );
@@ -80,6 +83,7 @@ public class Sosumi {
 		clientContext.put( "fmly", true );
 	}
 	
+	// ************************************************************************************************
 	private void refresh() throws SosumiException {
 
 		CloseableHttpResponse resp = postApiCall("initClient", gson.toJson( clientContext ));
@@ -119,6 +123,7 @@ public class Sosumi {
 		}
 	}
 
+	// ************************************************************************************************
 	public Collection<DeviceInfo> getDevices() throws SosumiException {
 
 		if ( this.devices.size() < 1 ) {
@@ -128,6 +133,7 @@ public class Sosumi {
 		return this.devices.values();
 	}
 
+	// ************************************************************************************************
 	public void sendMessage(
 			final String deviceName, 
 			final String text, 
@@ -149,6 +155,7 @@ public class Sosumi {
 		doRemoteRequestAndReadAnswer( "sendMessage", gson.toJson( jsonMap ) );
 	}
 
+	// ************************************************************************************************
 	public void playSound(
 			final String deviceName, 
 			final String title ) throws SosumiException {
@@ -163,6 +170,7 @@ public class Sosumi {
 		doRemoteRequestAndReadAnswer( "playSound", gson.toJson( jsonMap ) );
 	}
 
+	// ************************************************************************************************
 	private DeviceInfo getDeviceInfo(
 			final String deviceName ) throws SosumiException {
 
@@ -177,6 +185,7 @@ public class Sosumi {
 		return di;
 	}
 
+	// ************************************************************************************************
 	public void startLostMode( 
 			final String deviceName, 
 			final String msg, 
@@ -213,6 +222,7 @@ public class Sosumi {
 		doRemoteRequestAndReadAnswer( "lostDevice", gson.toJson( jsonMap ) );
 	}
 
+	// ************************************************************************************************
 	public void stopLostMode( 
 			final String deviceName ) throws SosumiException {
 
@@ -229,13 +239,14 @@ public class Sosumi {
 		doRemoteRequestAndReadAnswer( "lostDevice", gson.toJson( jsonMap ) );
 	}
 
+	// ************************************************************************************************
 	public void lock( 
 			final String deviceName,
 			final String passcode ) throws SosumiException {
 
 		DeviceInfo di = getDeviceInfo( deviceName );
 
-		Map<String, Object> jsonMap = new HashMap<String, Object>(3);
+		Map<String, Object> jsonMap = new HashMap<String, Object>(4);
 		jsonMap.put( "clientContext", clientContext );
 		jsonMap.put( "device", di.getDeviceId() );
 		jsonMap.put( "emailUpdates", true );
@@ -247,6 +258,7 @@ public class Sosumi {
 		doRemoteRequestAndReadAnswer( "remoteLock", gson.toJson( jsonMap ) );
 	}
 
+	// ************************************************************************************************
 	private void doRemoteRequestAndReadAnswer(
 			final String endpoint,
 			final String json ) throws SosumiException {
@@ -269,6 +281,7 @@ public class Sosumi {
 		}
 	}
 
+	// ************************************************************************************************
 	public void wipe( 
 			final  String deviceName ) throws SosumiException {
 		
@@ -281,6 +294,7 @@ public class Sosumi {
 		doRemoteRequestAndReadAnswer( "remoteWipe", gson.toJson( jsonMap ) );
 	}
 
+	// ************************************************************************************************
 	/**
 	 * Get the location of a device
 	 *
@@ -319,6 +333,7 @@ public class Sosumi {
 		return devices.get(deviceName).getDeviceLocation();
 	}
 
+	// ************************************************************************************************
 	private CloseableHttpResponse postApiCall(
 			final String urlFunction, 
 			final String jsonBody) throws SosumiException {
@@ -360,17 +375,20 @@ public class Sosumi {
 		}
 	}
 
+	// ************************************************************************************************
 	private String getBasicAuthCredentials() {
 		
 		String userAndPass = this.username + ":" + this.password;
 		return Base64.encodeBase64String(userAndPass.getBytes());
 	}
 
+	// ************************************************************************************************
 	void setLocateRefreshInterval(long locateRefreshInterval) {
 		
 		this.locateRefreshInterval = locateRefreshInterval;
 	}
 
+	// ************************************************************************************************
 	private void grabHeaders(
 			final CloseableHttpResponse response) {
 
@@ -395,4 +413,9 @@ public class Sosumi {
 			this.scope = scopeHdr.getValue();
 		}
 	}
+	
+	// ************************************************************************************************
+	// ************************************************************************************************
+	// ************************************************************************************************
+	
 }
