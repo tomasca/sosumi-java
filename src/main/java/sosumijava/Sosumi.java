@@ -98,14 +98,7 @@ public class Sosumi {
     }
 
     public void sendMessage(String deviceName, String text, String subject, boolean sound) throws SosumiException {
-        DeviceInfo di = devices.get(deviceName);
-        if (di == null) {
-            refresh();
-            di = devices.get(deviceName);
-            if (di == null) {
-                throw new SosumiException("Unknown device: " + deviceName);
-            }
-        }
+        DeviceInfo di = getDeviceInfo( deviceName );
 
         String json = "{" + CLIENT_CONTEXT
                 + ",\"device\":\"" + di.getDeviceId() + "\""
@@ -116,59 +109,24 @@ public class Sosumi {
                 + ",\"userText\":\"true\""
                 + "}";
 
-        CloseableHttpResponse resp = postApiCall("sendMessage", json);
-        LOG.debug("Response: " + resp.getStatusLine());
-        if (resp.getStatusLine().getStatusCode() == 200) {
-            try {
-                String data = EntityUtils.toString(resp.getEntity());
-                LOG.debug(data);
-
-            } catch (IOException ex) {
-                throw new SosumiException("Failed to read response payload", ex);
-            } catch (ParseException ex) {
-                throw new SosumiException("Failed to parse response payload", ex);
-            }
-        } else {
-            LOG.warn("No successful response received");
-            throw new SosumiException("Did not receive a successful respose from FMIP service");
-        }
+        doRemoteRequestAndReadAnswer( "sendMessage", json );
     }
     
     public void playSound(String deviceName, String title ) throws SosumiException {
-        DeviceInfo di = devices.get(deviceName);
-        if (di == null) {
-            refresh();
-            di = devices.get(deviceName);
-            if (di == null) {
-                throw new SosumiException("Unknown device: " + deviceName);
-            }
-        }
+        DeviceInfo di = getDeviceInfo( deviceName );
 
         String json = "{" + CLIENT_CONTEXT
                 + ",\"device\":\"" + di.getDeviceId() + "\""
                 + ",\"subject\":\"" + title + "\""
                 + "}";
 
-        CloseableHttpResponse resp = postApiCall("playSound", json);
-        LOG.debug("Response: " + resp.getStatusLine());
-        if (resp.getStatusLine().getStatusCode() == 200) {
-            try {
-                String data = EntityUtils.toString(resp.getEntity());
-                LOG.debug(data);
-
-            } catch (IOException ex) {
-                throw new SosumiException("Failed to read response payload", ex);
-            } catch (ParseException ex) {
-                throw new SosumiException("Failed to parse response payload", ex);
-            }
-        } else {
-            LOG.warn("No successful response received");
-            throw new SosumiException("Did not receive a successful respose from FMIP service");
-        }
+        doRemoteRequestAndReadAnswer( "playSound", json );
     }
-    
-    public void startLostMode( String deviceName, String msg ) throws SosumiException {
-        DeviceInfo di = devices.get(deviceName);
+
+	private DeviceInfo getDeviceInfo(
+			String deviceName ) throws SosumiException {
+
+		DeviceInfo di = devices.get(deviceName);
         if (di == null) {
             refresh();
             di = devices.get(deviceName);
@@ -176,6 +134,11 @@ public class Sosumi {
                 throw new SosumiException("Unknown device: " + deviceName);
             }
         }
+		return di;
+	}
+    
+    public void startLostMode( String deviceName, String msg ) throws SosumiException {
+        DeviceInfo di = getDeviceInfo( deviceName );
 
         String json = "{" + CLIENT_CONTEXT
                 + ",\"device\":\"" + di.getDeviceId() + "\""
@@ -189,33 +152,11 @@ public class Sosumi {
                 + ",\"ownerNbr\":\"(19) 98117-9671\""
                 + "}";
 
-        CloseableHttpResponse resp = postApiCall("lostDevice", json);
-        LOG.debug("Response: " + resp.getStatusLine());
-        if (resp.getStatusLine().getStatusCode() == 200) {
-            try {
-                String data = EntityUtils.toString(resp.getEntity());
-                LOG.debug(data);
-
-            } catch (IOException ex) {
-                throw new SosumiException("Failed to read response payload", ex);
-            } catch (ParseException ex) {
-                throw new SosumiException("Failed to parse response payload", ex);
-            }
-        } else {
-            LOG.warn("No successful response received");
-            throw new SosumiException("Did not receive a successful respose from FMIP service");
-        }
+        doRemoteRequestAndReadAnswer( "lostDevice", json );
     }
     
     public void stopLostMode( String deviceName ) throws SosumiException {
-        DeviceInfo di = devices.get(deviceName);
-        if (di == null) {
-            refresh();
-            di = devices.get(deviceName);
-            if (di == null) {
-                throw new SosumiException("Unknown device: " + deviceName);
-            }
-        }
+        DeviceInfo di = getDeviceInfo( deviceName );
 
         String json = "{" + CLIENT_CONTEXT
                 + ",\"device\":\"" + di.getDeviceId() + "\""
@@ -225,33 +166,11 @@ public class Sosumi {
                 + ",\"emailUpdates\":\"" + false + "\""
                 + "}";
 
-        CloseableHttpResponse resp = postApiCall("lostDevice", json);
-        LOG.debug("Response: " + resp.getStatusLine());
-        if (resp.getStatusLine().getStatusCode() == 200) {
-            try {
-                String data = EntityUtils.toString(resp.getEntity());
-                LOG.debug(data);
-
-            } catch (IOException ex) {
-                throw new SosumiException("Failed to read response payload", ex);
-            } catch (ParseException ex) {
-                throw new SosumiException("Failed to parse response payload", ex);
-            }
-        } else {
-            LOG.warn("No successful response received");
-            throw new SosumiException("Did not receive a successful respose from FMIP service");
-        }
+        doRemoteRequestAndReadAnswer( "lostDevice", json );
     }
     
     public void lock( String deviceName ) throws SosumiException {
-        DeviceInfo di = devices.get(deviceName);
-        if (di == null) {
-            refresh();
-            di = devices.get(deviceName);
-            if (di == null) {
-                throw new SosumiException("Unknown device: " + deviceName);
-            }
-        }
+        DeviceInfo di = getDeviceInfo( deviceName );
 
         String json = "{" + CLIENT_CONTEXT
                 + ",\"device\":\"" + di.getDeviceId() + "\""
@@ -259,7 +178,14 @@ public class Sosumi {
                 + ",\"emailUpdates\":\"" + true + "\""
                 + "}";
 
-        CloseableHttpResponse resp = postApiCall("remoteLock", json);
+        doRemoteRequestAndReadAnswer( "remoteLock", json );
+    }
+
+	private void doRemoteRequestAndReadAnswer(
+			String endpoint,
+			String json ) throws SosumiException {
+
+		CloseableHttpResponse resp = postApiCall(endpoint, json);
         LOG.debug("Response: " + resp.getStatusLine());
         if (resp.getStatusLine().getStatusCode() == 200) {
             try {
@@ -275,40 +201,18 @@ public class Sosumi {
             LOG.warn("No successful response received");
             throw new SosumiException("Did not receive a successful respose from FMIP service");
         }
-    }
+	}
     
     public void wipe( String deviceName ) throws SosumiException {
-        DeviceInfo di = devices.get(deviceName);
-        if (di == null) {
-            refresh();
-            di = devices.get(deviceName);
-            if (di == null) {
-                throw new SosumiException("Unknown device: " + deviceName);
-            }
-        }
+        DeviceInfo di = getDeviceInfo( deviceName );
 
         String json = "{" + CLIENT_CONTEXT
                 + ",\"device\":\"" + di.getDeviceId() + "\""
                 + "}";
 
-        CloseableHttpResponse resp = postApiCall("remoteWipe", json);
-        LOG.debug("Response: " + resp.getStatusLine());
-        if (resp.getStatusLine().getStatusCode() == 200) {
-            try {
-                String data = EntityUtils.toString(resp.getEntity());
-                LOG.debug(data);
-
-            } catch (IOException ex) {
-                throw new SosumiException("Failed to read response payload", ex);
-            } catch (ParseException ex) {
-                throw new SosumiException("Failed to parse response payload", ex);
-            }
-        } else {
-            LOG.warn("No successful response received");
-            throw new SosumiException("Did not receive a successful respose from FMIP service");
-        }
+        doRemoteRequestAndReadAnswer( "remoteWipe", json );
     }
-
+    
     /**
      * Get the location of a device
      *
@@ -317,7 +221,6 @@ public class Sosumi {
      * @return the device location
      * @throws SosumiException
      */
-    @SuppressWarnings("SleepWhileInLoop")
     public DeviceLocation locateDevice(String deviceName, Integer timeout) throws SosumiException {
         if (timeout == null) {
             timeout = 120;
