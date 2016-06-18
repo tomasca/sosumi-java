@@ -152,7 +152,7 @@ public class SosumiTest {
             }
         }).when(handler).handle((HttpRequest) anyObject(), (HttpResponse) anyObject(), (HttpContext) anyObject());
 
-        impl.sendMessage("MyiPad", "A text message", "A subject", false);
+        impl.sendMessage("MyiPad", "A text message", "A subject", false, false );
         
     }
 

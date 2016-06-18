@@ -30,313 +30,352 @@ import com.google.gson.JsonParser;
 /**
  *
  * @author tomasca
+ * @author Danilo Recchia
  */
 public class Sosumi {
 
-    private static final Logger LOG = Logger.getLogger(Sosumi.class);
-    private static final int MAX_REDIRECTS = 4;
-    private static final String CLIENT_CONTEXT = "\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\",\"fmly\":true}";
-    private static final String INIT_JSON_BODY = "{" + CLIENT_CONTEXT + "}";
-    
-    private URL fmipHost;
-    private URL partition;
-    private String scope;
-    private CloseableHttpClient httpclient;
-    private long locateRefreshInterval = 5000L;
-    private String password;
-    private String username;
-    private HashMap<String, DeviceInfo> devices;
+	private static final Logger LOG = Logger.getLogger(Sosumi.class);
+	private static final int MAX_REDIRECTS = 4;
+	private static final String CLIENT_CONTEXT = "\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\",\"fmly\":true}";
+	private static final String INIT_JSON_BODY = "{" + CLIENT_CONTEXT + "}";
 
-    /**
-     *
-     * @param fmipHostUrl Base URL where the Find My iPhone service is located. E.g https://fmipmobile.icloud.com
-     * @param username iCloud username (Apple ID)
-     * @param password iCloud password
-     */
-    public Sosumi(String fmipHostUrl, String username, String password) throws MalformedURLException {
-        this.fmipHost = new URL(fmipHostUrl);
-        this.username = username;
-        this.password = password;
-        devices = new HashMap<String, DeviceInfo>(4);
-        httpclient = HttpClients.createDefault();
-    }
+	private URL fmipHost;
+	private URL partition;
+	private String scope;
+	private CloseableHttpClient httpclient;
+	private long locateRefreshInterval = 5000L;
+	private String password;
+	private String username;
+	private HashMap<String, DeviceInfo> devices;
 
-    private void refresh() throws SosumiException {
-        CloseableHttpResponse resp = postApiCall("initClient", Sosumi.INIT_JSON_BODY);
-        int redirects = 0;
+	/**
+	 *
+	 * @param fmipHostUrl Base URL where the Find My iPhone service is located. E.g https://fmipmobile.icloud.com
+	 * @param username iCloud username (Apple ID)
+	 * @param password iCloud password
+	 */
+	public Sosumi(
+			final String fmipHostUrl, 
+			final String username, 
+			final String password) throws MalformedURLException {
 
-        while ((redirects < MAX_REDIRECTS) && resp.getStatusLine().getStatusCode() == 330) {
-            grabHeaders(resp);
-            LOG.debug("Following 330 redirect...");
-            resp = postApiCall("initClient", Sosumi.INIT_JSON_BODY);
-        }
+		this.fmipHost = new URL(fmipHostUrl);
+		this.username = username;
+		this.password = password;
+		devices = new HashMap<String, DeviceInfo>(4);
+		httpclient = HttpClients.createDefault();
+	}
 
-        LOG.debug("Response: " + resp.getStatusLine());
+	private void refresh() throws SosumiException {
 
-        if (resp.getStatusLine().getStatusCode() == 200) {
-            try {
-                String data = EntityUtils.toString(resp.getEntity());
-                LOG.debug(data);
-                JsonElement json = new JsonParser().parse(data);
+		CloseableHttpResponse resp = postApiCall("initClient", Sosumi.INIT_JSON_BODY);
+		int redirects = 0;
 
-                JsonArray jsonArray = json.getAsJsonObject().get("content").getAsJsonArray();
-                HashMap<String, DeviceInfo> tmpDevices = new HashMap<String, DeviceInfo>(5);
-                for (int i = 0; i < jsonArray.size(); i++) {
-                    DeviceInfo di = DeviceInfo.fromJson(jsonArray.get(i).toString());
-                    tmpDevices.put(di.getDeviceName(), di);
-                    LOG.debug(di);
-                }
-                this.devices = tmpDevices;
+		while ((redirects < MAX_REDIRECTS) && resp.getStatusLine().getStatusCode() == 330) {
+			grabHeaders(resp);
+			LOG.debug("Following 330 redirect...");
+			resp = postApiCall("initClient", Sosumi.INIT_JSON_BODY);
+		}
 
-            } catch (IOException ex) {
-                throw new SosumiException("Failed to read response payload", ex);
-            } catch (ParseException ex) {
-                throw new SosumiException("Failed to parse response payload", ex);
-            }
-        } else {
-            LOG.warn("No successful response received");
-            throw new SosumiException("Did not receive a successful respose from FMIP service");
-        }
-    }
-    
-    public Collection<DeviceInfo> getDevices() throws SosumiException {
-    	
-    	if ( this.devices.size() < 1 ) {
+		LOG.debug("Response: " + resp.getStatusLine());
+
+		if (resp.getStatusLine().getStatusCode() == 200) {
+			try {
+				String data = EntityUtils.toString(resp.getEntity());
+				LOG.debug(data);
+				JsonElement json = new JsonParser().parse(data);
+
+				JsonArray jsonArray = json.getAsJsonObject().get("content").getAsJsonArray();
+				HashMap<String, DeviceInfo> tmpDevices = new HashMap<String, DeviceInfo>(5);
+				for (int i = 0; i < jsonArray.size(); i++) {
+					DeviceInfo di = DeviceInfo.fromJson(jsonArray.get(i).toString());
+					tmpDevices.put(di.getDeviceName(), di);
+					LOG.debug(di);
+				}
+				this.devices = tmpDevices;
+
+			} catch (IOException ex) {
+				throw new SosumiException("Failed to read response payload", ex);
+			} catch (ParseException ex) {
+				throw new SosumiException("Failed to parse response payload", ex);
+			}
+		} else {
+			LOG.warn("No successful response received");
+			throw new SosumiException("Did not receive a successful respose from FMIP service");
+		}
+	}
+
+	public Collection<DeviceInfo> getDevices() throws SosumiException {
+
+		if ( this.devices.size() < 1 ) {
 			this.refresh();
-    	}
-    	
-    	return this.devices.values();
-    }
+		}
 
-    public void sendMessage(String deviceName, String text, String subject, boolean sound) throws SosumiException {
-        DeviceInfo di = getDeviceInfo( deviceName );
+		return this.devices.values();
+	}
 
-        String json = "{" + CLIENT_CONTEXT
-                + ",\"device\":\"" + di.getDeviceId() + "\""
-                + ",\"emailUpdates\":\"false\""
-                + ",\"sound\":\"" + sound + "\""
-                + ",\"subject\":\"" + subject + "\""
-                + ",\"text\":\"" + text + "\""
-                + ",\"userText\":\"true\""
-                + "}";
+	public void sendMessage(
+			final String deviceName, 
+			final String text, 
+			final String subject, 
+			final boolean sound, 
+			final boolean emailUpdates ) throws SosumiException {
 
-        doRemoteRequestAndReadAnswer( "sendMessage", json );
-    }
-    
-    public void playSound(String deviceName, String title ) throws SosumiException {
-        DeviceInfo di = getDeviceInfo( deviceName );
+		DeviceInfo di = getDeviceInfo( deviceName );
 
-        String json = "{" + CLIENT_CONTEXT
-                + ",\"device\":\"" + di.getDeviceId() + "\""
-                + ",\"subject\":\"" + title + "\""
-                + "}";
+		String json = "{" + CLIENT_CONTEXT
+				+ ",\"device\":\"" + di.getDeviceId() + "\""
+				+ ",\"emailUpdates\":\""+ emailUpdates +"\""
+				+ ",\"sound\":\"" + sound + "\""
+				+ ",\"subject\":\"" + subject + "\""
+				+ ",\"text\":\"" + text + "\""
+				+ ",\"userText\":\"true\""
+				+ "}";
 
-        doRemoteRequestAndReadAnswer( "playSound", json );
-    }
+		doRemoteRequestAndReadAnswer( "sendMessage", json );
+	}
+
+	public void playSound(
+			final String deviceName, 
+			final String title ) throws SosumiException {
+
+		DeviceInfo di = getDeviceInfo( deviceName );
+
+		String json = "{" + CLIENT_CONTEXT
+				+ ",\"device\":\"" + di.getDeviceId() + "\""
+				+ ",\"subject\":\"" + title + "\""
+				+ "}";
+
+		doRemoteRequestAndReadAnswer( "playSound", json );
+	}
 
 	private DeviceInfo getDeviceInfo(
-			String deviceName ) throws SosumiException {
+			final String deviceName ) throws SosumiException {
 
 		DeviceInfo di = devices.get(deviceName);
-        if (di == null) {
-            refresh();
-            di = devices.get(deviceName);
-            if (di == null) {
-                throw new SosumiException("Unknown device: " + deviceName);
-            }
-        }
+		if (di == null) {
+			refresh();
+			di = devices.get(deviceName);
+			if (di == null) {
+				throw new SosumiException("Unknown device: " + deviceName);
+			}
+		}
 		return di;
 	}
-    
-    public void startLostMode( String deviceName, String msg ) throws SosumiException {
-        DeviceInfo di = getDeviceInfo( deviceName );
 
-        String json = "{" + CLIENT_CONTEXT
-                + ",\"device\":\"" + di.getDeviceId() + "\""
-                + ",\"lostModeEnabled\":\"" + true + "\""
-                + ",\"trackingEnabled\":\"" + true + "\""
-                + ",\"userText\":\"" + true + "\""
-                + ",\"text\":\"" + msg + "\""
-//                + ",\"passcode\":\"1234\""
-                + ",\"sound\":\"" + true + "\""
-                + ",\"emailUpdates\":\"" + true + "\""
-                + ",\"ownerNbr\":\"(19) 98117-9671\""
-                + "}";
+	public void startLostMode( 
+			final String deviceName, 
+			final String msg, 
+			final String ownerNbr, 
+			final String passcode, 
+			final boolean playSound, 
+			final boolean emailUpdates ) throws SosumiException {
 
-        doRemoteRequestAndReadAnswer( "lostDevice", json );
-    }
-    
-    public void stopLostMode( String deviceName ) throws SosumiException {
-        DeviceInfo di = getDeviceInfo( deviceName );
+		DeviceInfo di = getDeviceInfo( deviceName );
 
-        String json = "{" + CLIENT_CONTEXT
-                + ",\"device\":\"" + di.getDeviceId() + "\""
-                + ",\"lostModeEnabled\":\"" + true + "\""
-                + ",\"trackingEnabled\":\"" + false + "\""
-                + ",\"userText\":\"" + false + "\""
-                + ",\"emailUpdates\":\"" + false + "\""
-                + "}";
+		String json = "{" + CLIENT_CONTEXT
+				+ ",\"device\":\"" + di.getDeviceId() + "\""
+				+ ",\"lostModeEnabled\":\"true\""
+				+ ",\"trackingEnabled\":\"true\""
+				+ ",\"sound\":\"" + playSound + "\""
+				+ ",\"emailUpdates\":\"" + emailUpdates + "\"";
 
-        doRemoteRequestAndReadAnswer( "lostDevice", json );
-    }
-    
-    public void lock( String deviceName ) throws SosumiException {
-        DeviceInfo di = getDeviceInfo( deviceName );
+		if ( passcode != null ) {
+			json += ",\"passcode\":\"" + passcode + "\""; 
+		}
 
-        String json = "{" + CLIENT_CONTEXT
-                + ",\"device\":\"" + di.getDeviceId() + "\""
-                + ",\"passcode\":\"1234\""
-                + ",\"emailUpdates\":\"" + true + "\""
-                + "}";
+		if ( ownerNbr != null ) {
+			json += ",\"ownerNbr\":\"" + ownerNbr + "\"";
+		}
 
-        doRemoteRequestAndReadAnswer( "remoteLock", json );
-    }
+		if ( msg != null ) {
+			json += ",\"userText\":\"true\"";
+			json += ",\"text\":\"" + msg + "\"";	
+		} else {
+			json += ",\"userText\":false";
+		}
+
+		json += "}";
+
+		doRemoteRequestAndReadAnswer( "lostDevice", json );
+	}
+
+	public void stopLostMode( 
+			final String deviceName ) throws SosumiException {
+
+		DeviceInfo di = getDeviceInfo( deviceName );
+
+		String json = "{" + CLIENT_CONTEXT
+				+ ",\"device\":\"" + di.getDeviceId() + "\""
+				+ ",\"lostModeEnabled\":\"true\""
+				+ ",\"trackingEnabled\":\"false\""
+				+ ",\"userText\":\"false\""
+				+ ",\"emailUpdates\":\"false\""
+				+ "}";
+
+		doRemoteRequestAndReadAnswer( "lostDevice", json );
+	}
+
+	public void lock( 
+			final String deviceName ) throws SosumiException {
+
+		DeviceInfo di = getDeviceInfo( deviceName );
+
+		String json = "{" + CLIENT_CONTEXT
+				+ ",\"device\":\"" + di.getDeviceId() + "\""
+				+ ",\"passcode\":\"1234\""
+				+ ",\"emailUpdates\":\"" + true + "\""
+				+ "}";
+
+		doRemoteRequestAndReadAnswer( "remoteLock", json );
+	}
 
 	private void doRemoteRequestAndReadAnswer(
-			String endpoint,
-			String json ) throws SosumiException {
+			final String endpoint,
+			final String json ) throws SosumiException {
 
 		CloseableHttpResponse resp = postApiCall(endpoint, json);
-        LOG.debug("Response: " + resp.getStatusLine());
-        if (resp.getStatusLine().getStatusCode() == 200) {
-            try {
-                String data = EntityUtils.toString(resp.getEntity());
-                LOG.debug(data);
+		LOG.debug("Response: " + resp.getStatusLine());
+		if (resp.getStatusLine().getStatusCode() == 200) {
+			try {
+				String data = EntityUtils.toString(resp.getEntity());
+				LOG.debug(data);
 
-            } catch (IOException ex) {
-                throw new SosumiException("Failed to read response payload", ex);
-            } catch (ParseException ex) {
-                throw new SosumiException("Failed to parse response payload", ex);
-            }
-        } else {
-            LOG.warn("No successful response received");
-            throw new SosumiException("Did not receive a successful respose from FMIP service");
-        }
+			} catch (IOException ex) {
+				throw new SosumiException("Failed to read response payload", ex);
+			} catch (ParseException ex) {
+				throw new SosumiException("Failed to parse response payload", ex);
+			}
+		} else {
+			LOG.warn("No successful response received");
+			throw new SosumiException("Did not receive a successful respose from FMIP service");
+		}
 	}
-    
-    public void wipe( String deviceName ) throws SosumiException {
-        DeviceInfo di = getDeviceInfo( deviceName );
 
-        String json = "{" + CLIENT_CONTEXT
-                + ",\"device\":\"" + di.getDeviceId() + "\""
-                + "}";
+	public void wipe( 
+			final  String deviceName ) throws SosumiException {
+		
+		DeviceInfo di = getDeviceInfo( deviceName );
 
-        doRemoteRequestAndReadAnswer( "remoteWipe", json );
-    }
-    
-    /**
-     * Get the location of a device
-     *
-     * @param deviceName the name of the device to locate
-     * @param timeout timeout in seconds
-     * @return the device location
-     * @throws SosumiException
-     */
-    public DeviceLocation locateDevice(String deviceName, Integer timeout) throws SosumiException {
-        if (timeout == null) {
-            timeout = 120;
-        }
-        if (devices.get(deviceName) == null) {
-            refresh();
-        }
+		String json = "{" + CLIENT_CONTEXT
+				+ ",\"device\":\"" + di.getDeviceId() + "\""
+				+ "}";
 
-        long timeoutMillis = timeout * 1000L;
-        long start = System.currentTimeMillis();
-        while (!devices.get(deviceName).isLocationFinished()) {
-            if ((System.currentTimeMillis() - start) > timeoutMillis) {
-                throw new SosumiException("Failed to locate device. Request timed out (" + timeout + "s)");
-            }
-            try {
-                Thread.sleep(locateRefreshInterval);
-            } catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
-            refresh();
-        }
+		doRemoteRequestAndReadAnswer( "remoteWipe", json );
+	}
 
-        return devices.get(deviceName).getDeviceLocation();
-    }
+	/**
+	 * Get the location of a device
+	 *
+	 * @param deviceName the name of the device to locate
+	 * @param timeout timeout in seconds
+	 * @return the device location
+	 * @throws SosumiException
+	 */
+	public DeviceLocation locateDevice(
+			final String deviceName, 
+			final Integer timeout ) throws SosumiException {
 
-    private CloseableHttpResponse postApiCall(String urlFunction, String jsonBody) throws SosumiException {
+		int internalTimeout = 120;
+		
+		if (timeout != null) {
+			internalTimeout = timeout;
+		}
+		if (devices.get(deviceName) == null) {
+			refresh();
+		}
 
-        URL baseUrl = this.partition != null ? this.partition : getFmipHost();
+		long timeoutMillis = internalTimeout * 1000L;
+		long start = System.currentTimeMillis();
+		while (!devices.get(deviceName).isLocationFinished()) {
+			if ((System.currentTimeMillis() - start) > timeoutMillis) {
+				throw new SosumiException("Failed to locate device. Request timed out (" + internalTimeout + "s)");
+			}
+			try {
+				Thread.sleep(locateRefreshInterval);
+			} catch (InterruptedException ex) {
+				throw new RuntimeException(ex);
+			}
+			refresh();
+		}
 
-        StringBuilder url = new StringBuilder();
-        url.append(baseUrl.toExternalForm());
-        url.append("/fmipservice/device/");
-        url.append(this.scope != null ? this.scope : getUsername());
-        url.append("/");
-        url.append(urlFunction);
+		return devices.get(deviceName).getDeviceLocation();
+	}
 
-        HttpPost httppost = new HttpPost(url.toString());
+	private CloseableHttpResponse postApiCall(
+			final String urlFunction, 
+			final String jsonBody) throws SosumiException {
 
-        httppost.addHeader("Accept-Language", "en-us");
-        httppost.addHeader("Content-Type", "application/json; charset=utf-8");
-        httppost.addHeader("X-Apple-Realm-Support", "1.0");
-        httppost.addHeader("X-Apple-Find-Api-Ver", "3.0");
-        httppost.addHeader("X-Apple-Authscheme", "UserIdGuest");
-        httppost.addHeader("User-agent", "FindMyiPhone/376 CFNetwork/672.0.8 Darwin/14.0.0");
-        httppost.addHeader("Authorization", "Basic " + getBasicAuthCredentials());
+		URL baseUrl = this.partition != null ? this.partition : this.fmipHost;
 
-        HttpEntity entity;
-        try {
-            entity = new StringEntity(jsonBody);
-        } catch (UnsupportedEncodingException ex) {
-            throw new RuntimeException(ex);
-        }
-        httppost.setEntity(entity);
+		StringBuilder url = new StringBuilder();
+		url.append(baseUrl.toExternalForm());
+		url.append("/fmipservice/device/");
+		url.append(this.scope != null ? this.scope : this.username);
+		url.append("/");
+		url.append(urlFunction);
 
-        LOG.debug("Executing request " + httppost.getRequestLine());
+		HttpPost httppost = new HttpPost(url.toString());
 
-        try {
-            CloseableHttpResponse resp = httpclient.execute(httppost);
-            return resp;
-        } catch (IOException ioe) {
-            throw new SosumiException("Failed to execute request", ioe);
-        }
-    }
+		httppost.addHeader("Accept-Language", "en-us");
+		httppost.addHeader("Content-Type", "application/json; charset=utf-8");
+		httppost.addHeader("X-Apple-Realm-Support", "1.0");
+		httppost.addHeader("X-Apple-Find-Api-Ver", "3.0");
+		httppost.addHeader("X-Apple-Authscheme", "UserIdGuest");
+		httppost.addHeader("User-agent", "FindMyiPhone/376 CFNetwork/672.0.8 Darwin/14.0.0");
+		httppost.addHeader("Authorization", "Basic " + getBasicAuthCredentials());
 
-    private String getBasicAuthCredentials() {
-        String userAndPass = getUsername() + ":" + getPassword();
-        return Base64.encodeBase64String(userAndPass.getBytes());
-    }
+		HttpEntity entity;
+		try {
+			entity = new StringEntity(jsonBody);
+		} catch (UnsupportedEncodingException ex) {
+			throw new RuntimeException(ex);
+		}
+		httppost.setEntity(entity);
 
-    void setLocateRefreshInterval(long locateRefreshInterval) {
-        this.locateRefreshInterval = locateRefreshInterval;
-    }
+		LOG.debug("Executing request " + httppost.getRequestLine());
 
-    private String getUsername() {
-        return username;
-    }
+		try {
+			CloseableHttpResponse resp = httpclient.execute(httppost);
+			return resp;
+		} catch (IOException ioe) {
+			throw new SosumiException("Failed to execute request", ioe);
+		}
+	}
 
-    private String getPassword() {
-        return password;
-    }
+	private String getBasicAuthCredentials() {
+		
+		String userAndPass = this.username + ":" + this.password;
+		return Base64.encodeBase64String(userAndPass.getBytes());
+	}
 
-    private URL getFmipHost() {
-        return fmipHost;
-    }
+	void setLocateRefreshInterval(long locateRefreshInterval) {
+		
+		this.locateRefreshInterval = locateRefreshInterval;
+	}
 
-    private void grabHeaders(CloseableHttpResponse response) {
-        Header hostHdr = response.getFirstHeader("X-Apple-MMe-Host");
-        if (hostHdr != null) {
-            try {
-                String val = hostHdr.getValue();
-                int colon = val.indexOf(':');
-                if (colon >= 0) {
-                    String host = val.substring(0, colon);
-                    int port = Integer.parseInt(val.substring(colon + 1));
-                    this.partition = new URL(fmipHost.getProtocol(), host, port, "/");
-                } else {
-                    this.partition = new URL(fmipHost.getProtocol(), hostHdr.getValue(), "/");
-                }
-            } catch (MalformedURLException ex) {
-                throw new RuntimeException(ex);
-            }
-        }
-        Header scopeHdr = response.getFirstHeader("X-Apple-MMe-Scope");
-        if (scopeHdr != null) {
-            this.scope = scopeHdr.getValue();
-        }
-    }
+	private void grabHeaders(
+			final CloseableHttpResponse response) {
+
+		Header hostHdr = response.getFirstHeader("X-Apple-MMe-Host");
+		if (hostHdr != null) {
+			try {
+				String val = hostHdr.getValue();
+				int colon = val.indexOf(':');
+				if (colon >= 0) {
+					String host = val.substring(0, colon);
+					int port = Integer.parseInt(val.substring(colon + 1));
+					this.partition = new URL(fmipHost.getProtocol(), host, port, "/");
+				} else {
+					this.partition = new URL(fmipHost.getProtocol(), hostHdr.getValue(), "/");
+				}
+			} catch (MalformedURLException ex) {
+				throw new RuntimeException(ex);
+			}
+		}
+		Header scopeHdr = response.getFirstHeader("X-Apple-MMe-Scope");
+		if (scopeHdr != null) {
+			this.scope = scopeHdr.getValue();
+		}
+	}
 }
