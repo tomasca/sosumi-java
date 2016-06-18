@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.HashMap;
 
 import org.apache.commons.codec.binary.Base64;
@@ -33,17 +34,18 @@ import com.google.gson.JsonParser;
 public class Sosumi {
 
     private static final Logger LOG = Logger.getLogger(Sosumi.class);
+    private static final int MAX_REDIRECTS = 4;
+    private static final String CLIENT_CONTEXT = "\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\",\"fmly\":true}";
+    private static final String INIT_JSON_BODY = "{" + CLIENT_CONTEXT + "}";
+    
     private URL fmipHost;
     private URL partition;
     private String scope;
     private CloseableHttpClient httpclient;
-    private static final int MAX_REDIRECTS = 4;
     private long locateRefreshInterval = 5000L;
     private String password;
     private String username;
     private HashMap<String, DeviceInfo> devices;
-    private static final String CLIENT_CONTEXT = "\"clientContext\":{\"appName\":\"FindMyiPhone\",\"appVersion\":\"3.0\",\"buildVersion\":\"376\",\"clientTimestamp\":0,\"deviceUDID\":null,\"inactiveTime\":1,\"osVersion\":\"7.0.3\",\"productType\":\"iPhone6,1\",\"fmly\":true}";
-    private static final String INIT_JSON_BODY = "{" + CLIENT_CONTEXT + "}";
 
     /**
      *
@@ -55,7 +57,7 @@ public class Sosumi {
         this.fmipHost = new URL(fmipHostUrl);
         this.username = username;
         this.password = password;
-        devices = new HashMap<String, DeviceInfo>();
+        devices = new HashMap<String, DeviceInfo>(4);
         httpclient = HttpClients.createDefault();
     }
 
@@ -78,7 +80,7 @@ public class Sosumi {
                 JsonElement json = new JsonParser().parse(data);
 
                 JsonArray jsonArray = json.getAsJsonObject().get("content").getAsJsonArray();
-                HashMap<String, DeviceInfo> tmpDevices = new HashMap<String, DeviceInfo>();
+                HashMap<String, DeviceInfo> tmpDevices = new HashMap<String, DeviceInfo>(5);
                 for (int i = 0; i < jsonArray.size(); i++) {
                     DeviceInfo di = DeviceInfo.fromJson(jsonArray.get(i).toString());
                     tmpDevices.put(di.getDeviceName(), di);
@@ -95,6 +97,15 @@ public class Sosumi {
             LOG.warn("No successful response received");
             throw new SosumiException("Did not receive a successful respose from FMIP service");
         }
+    }
+    
+    public Collection<DeviceInfo> getDevices() throws SosumiException {
+    	
+    	if ( this.devices.size() < 1 ) {
+			this.refresh();
+    	}
+    	
+    	return this.devices.values();
     }
 
     public void sendMessage(String deviceName, String text, String subject, boolean sound) throws SosumiException {
